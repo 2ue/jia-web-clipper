@@ -1,0 +1,42 @@
+{
+  "name": "maoxian-file-server",
+  "version": "0.1.0",
+  "description": "Local file server for MaoXian Web Clipper - handles cross-origin resource downloads and file management",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix"
+  },
+  "keywords": [
+    "file-server",
+    "download",
+    "maoxian",
+    "web-clipper",
+    "cache"
+  ],
+  "author": "MaoXian Web Clipper Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.2",
+    "p-queue": "^7.4.1",
+    "nanoid": "^5.0.4"
+  },
+  "devDependencies": {
+    "vitest": "^1.1.0",
+    "supertest": "^6.3.3",
+    "nock": "^13.4.0",
+    "@vitest/coverage-v8": "^1.1.0",
+    "eslint": "^8.56.0"
+  }
+}
