@@ -19,3 +19,6 @@ native-app/pack.yaml
 native-app/pack.yaml.production
 native-app/test/mx-wc/clippings
 native-app/test/mx-wc/global-assets
+
+# Environment variables
+.env
