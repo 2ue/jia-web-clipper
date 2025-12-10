@@ -1,0 +1,247 @@
+name: Release Build and Publish
+
+on:
+  push:
+    tags:
+      - 'tagv*.*.*'  # 匹配 tagv0.0.1, tagv1.2.3 等格式
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # ==================== 构建打包 ====================
+  build:
+    name: Build Extension
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [chromium, firefox]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 7.33.7
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup .env file
+        run: |
+          # 优先使用 GitHub Secrets，如果没有则生成随机占位符
+          CHROMIUM_ID="${{ secrets.MX_CHROMIUM_ID }}"
+          FIREFOX_ID="${{ secrets.MX_FIREFOX_ID }}"
+          UPDATE_URL="${{ secrets.MX_CHROMIUM_UPDATE_URL }}"
+
+          # 如果 Secrets 为空，生成随机占位符
+          if [ -z "$CHROMIUM_ID" ]; then
+            CHROMIUM_ID="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA$(openssl rand -base64 32 | tr -d '\n')"
+            echo "⚠️  Using random CHROMIUM_ID (no secret configured)"
+          fi
+
+          if [ -z "$FIREFOX_ID" ]; then
+            FIREFOX_ID="{$(uuidgen | tr '[:upper:]' '[:lower:]')}"
+            echo "⚠️  Using random FIREFOX_ID (no secret configured)"
+          fi
+
+          if [ -z "$UPDATE_URL" ]; then
+            UPDATE_URL="https://example.com/updates.xml"
+            echo "⚠️  Using placeholder UPDATE_URL (no secret configured)"
+          fi
+
+          # 创建 .env 文件
+          cat > .env << EOF
+          MX_CHROMIUM_ID=$CHROMIUM_ID
+          MX_FIREFOX_ID=$FIREFOX_ID
+          MX_CHROMIUM_UPDATE_URL=$UPDATE_URL
+          NODE_ENV=production
+          EOF
+
+          echo "✅ .env file created successfully"
+
+      - name: Build ${{ matrix.platform }}
+        run: npm run build-${{ matrix.platform }}
+
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: maoxian-web-clipper-${{ matrix.platform }}-${{ steps.version.outputs.VERSION }}
+          path: dist/extension/maoxian-web-clipper-${{ matrix.platform }}-${{ steps.version.outputs.VERSION }}.zip
+          retention-days: 7
+
+  # ==================== 生成 Changelog ====================
+  generate-changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      version: ${{ steps.version.outputs.VERSION }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          # 获取当前 tag
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          echo "Current tag: $CURRENT_TAG"
+
+          # 获取上一个 tag（如果存在）
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -E '^tagv[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous tag found, using initial commit"
+            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "Previous tag: $PREVIOUS_TAG"
+
+          # 生成 changelog
+          CHANGELOG=$(git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- %s (%h)" --no-merges)
+
+          # 如果没有提交，使用默认消息
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Initial release"
+          fi
+
+          # 转义换行符并保存到输出
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # 输出预览
+          echo "=== Generated Changelog ==="
+          echo "$CHANGELOG"
+
+  # ==================== 创建 Release ====================
+  create-release:
+    name: Create GitHub Release
+    needs: [build, generate-changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Chromium artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: maoxian-web-clipper-chromium-${{ needs.generate-changelog.outputs.version }}
+          path: ./artifacts
+
+      - name: Download Firefox artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: maoxian-web-clipper-firefox-${{ needs.generate-changelog.outputs.version }}
+          path: ./artifacts
+
+      - name: List artifacts
+        run: |
+          echo "=== Downloaded artifacts ==="
+          ls -lh ./artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release v${{ needs.generate-changelog.outputs.version }}
+          body: |
+            ## 🎉 Maoxian Web Clipper v${{ needs.generate-changelog.outputs.version }}
+
+            ### 📦 安装包下载
+
+            - **Chromium/Chrome/Edge**: `maoxian-web-clipper-chromium-${{ needs.generate-changelog.outputs.version }}.zip`
+            - **Firefox**: `maoxian-web-clipper-firefox-${{ needs.generate-changelog.outputs.version }}.zip`
+
+            ### 📝 更新日志
+
+            ${{ needs.generate-changelog.outputs.changelog }}
+
+            ---
+
+            ### 📖 安装说明
+
+            #### Chromium/Chrome/Edge
+            1. 下载 `maoxian-web-clipper-chromium-*.zip`
+            2. 解压缩文件
+            3. 打开浏览器，访问 `chrome://extensions/`
+            4. 启用"开发者模式"
+            5. 点击"加载已解压的扩展程序"
+            6. 选择解压后的文件夹
+
+            #### Firefox
+            1. 下载 `maoxian-web-clipper-firefox-*.zip`
+            2. 打开 Firefox，访问 `about:debugging#/runtime/this-firefox`
+            3. 点击"临时载入附加组件"
+            4. 选择下载的 ZIP 文件
+
+            ---
+
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.ref_name }}...HEAD
+          files: |
+            ./artifacts/*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==================== 通知 ====================
+  notify:
+    name: Post-Release Notification
+    needs: [create-release, generate-changelog]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Send success notification
+        if: needs.create-release.result == 'success'
+        run: |
+          echo "✅ Release v${{ needs.generate-changelog.outputs.version }} created successfully!"
+          echo "🔗 https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+
+      - name: Send failure notification
+        if: needs.create-release.result == 'failure'
+        run: |
+          echo "❌ Release creation failed!"
+          exit 1

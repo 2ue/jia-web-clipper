@@ -1,0 +1,168 @@
+name: Version Bump (Optional)
+
+# 可选工作流：手动触发版本更新
+# 使用方法: Actions -> Version Bump -> Run workflow -> 选择版本类型
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: '版本更新类型'
+        required: true
+        type: choice
+        options:
+          - patch  # 0.7.0 -> 0.7.1
+          - minor  # 0.7.0 -> 0.8.0
+          - major  # 0.7.0 -> 1.0.0
+          - custom # 自定义版本号
+        default: 'patch'
+      custom_version:
+        description: '自定义版本号 (仅当选择 custom 时有效，如: 1.2.3)'
+        required: false
+        type: string
+
+jobs:
+  bump-version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Current version: $CURRENT_VERSION"
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.CURRENT_VERSION }}"
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
+          CUSTOM_VERSION="${{ github.event.inputs.custom_version }}"
+
+          # 解析当前版本号
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          # 计算新版本号
+          if [ "$VERSION_TYPE" = "custom" ] && [ -n "$CUSTOM_VERSION" ]; then
+            NEW_VERSION="$CUSTOM_VERSION"
+          elif [ "$VERSION_TYPE" = "major" ]; then
+            NEW_VERSION="$((MAJOR + 1)).0.0"
+          elif [ "$VERSION_TYPE" = "minor" ]; then
+            NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+          elif [ "$VERSION_TYPE" = "patch" ]; then
+            NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          else
+            echo "❌ Invalid version type"
+            exit 1
+          fi
+
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "🎉 New version will be: $NEW_VERSION"
+
+      - name: Update package.json
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.NEW_VERSION }}"
+
+          # 使用 node 更新 package.json
+          node -e "
+            const fs = require('fs');
+            const pkg = require('./package.json');
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+          echo "✅ Updated package.json to version $NEW_VERSION"
+
+      - name: Update manifest.json
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.NEW_VERSION }}"
+
+          # 使用 node 更新 manifest.json
+          node -e "
+            const fs = require('fs');
+            const manifest = require('./src/manifest.json');
+            manifest.version = '$NEW_VERSION';
+            fs.writeFileSync('./src/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          "
+
+          echo "✅ Updated src/manifest.json to version $NEW_VERSION"
+
+      - name: Create version bump commit
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.NEW_VERSION }}"
+
+          git add package.json src/manifest.json
+          git commit -m "chore(release): bump version to $NEW_VERSION
+
+          - Update package.json version
+          - Update manifest.json version
+
+          🤖 Generated with Claude Code
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+
+          echo "✅ Created version bump commit"
+
+      - name: Create and push tag
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.NEW_VERSION }}"
+          TAG_NAME="tagv$NEW_VERSION"
+
+          # 创建 tag
+          git tag -a "$TAG_NAME" -m "Release version $NEW_VERSION
+
+          🎉 This tag will trigger the release workflow
+          📦 Build artifacts will be created automatically
+
+          🤖 Generated with Claude Code"
+
+          # 推送 commit 和 tag
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin "$TAG_NAME"
+
+          echo "✅ Created and pushed tag: $TAG_NAME"
+          echo "🚀 Release workflow will be triggered automatically"
+
+      - name: Output summary
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.CURRENT_VERSION }}"
+          NEW_VERSION="${{ steps.new_version.outputs.NEW_VERSION }}"
+          TAG_NAME="tagv$NEW_VERSION"
+
+          cat << EOF
+          ╔════════════════════════════════════════════════╗
+          ║          Version Bump Summary                  ║
+          ╠════════════════════════════════════════════════╣
+          ║  Previous Version: $CURRENT_VERSION            ║
+          ║  New Version:      $NEW_VERSION                ║
+          ║  Tag Created:      $TAG_NAME                   ║
+          ║                                                ║
+          ║  ✅ Files Updated:                             ║
+          ║     - package.json                             ║
+          ║     - src/manifest.json                        ║
+          ║                                                ║
+          ║  🚀 Next Steps:                                ║
+          ║     The release workflow will automatically    ║
+          ║     trigger and create a new release with      ║
+          ║     build artifacts.                           ║
+          ╚════════════════════════════════════════════════╝
+          EOF

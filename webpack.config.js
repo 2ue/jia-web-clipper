@@ -7,7 +7,14 @@ import CopyWebpackPlugin      from "copy-webpack-plugin";
 import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 import RemovePlugin           from 'remove-files-webpack-plugin';
 import ZipPlugin              from 'zip-webpack-plugin';
+import dotenv                 from 'dotenv';
 
+// Resolve __dirname in ESM first, so we can load .env before reading env vars.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
+
+// Load local .env (non-intrusive to global shell env)
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const ENVIRONMENT = process.env.NODE_ENV || "development";
 const IS_PRODUCTION  = (ENVIRONMENT === "production");
@@ -26,10 +33,14 @@ const PLATFORM = process.env.MX_PLATFORM
 // because it's dangerous, Chrome can use it to
 // disable the installed extension without a reason.
 //
-const PLATFORM_ID = process.env.MX_PLATFORM_ID
+const PLATFORM_ID =
+  process.env.MX_PLATFORM_ID ||
+  (PLATFORM === 'chromium' ? process.env.MX_CHROMIUM_ID : process.env.MX_FIREFOX_ID)
 
 // The update manifest file's URL that we self hosted (Chromium).
-const PLATFORM_UPDATE_URL = process.env.MX_PLATFORM_UPDATE_URL
+const PLATFORM_UPDATE_URL =
+  process.env.MX_PLATFORM_UPDATE_URL ||
+  (PLATFORM === 'chromium' ? process.env.MX_CHROMIUM_UPDATE_URL : undefined)
 
 if (IS_PRODUCTION) {
   if (PLATFORM && PLATFORM_ID && PLATFORM_UPDATE_URL) {
@@ -47,10 +58,7 @@ if (IS_PRODUCTION) {
   }
 }
 
-// Fix CJS global variables
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
-
+const pages_folder = path.join(__dirname, "src", "pages");
 const dist_folder  = path.join(__dirname, "dist", "extension", "maoxian-web-clipper");
 const npm_folder   = path.join(__dirname, "node_modules");
 
