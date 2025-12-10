@@ -31,7 +31,10 @@
       ]
     }
   ],
-  "background": {},
+  "background": {
+    "service_worker": "js/background.js",
+    "type": "module"
+  },
   "content_scripts": {},
   "commands": {
     "slot-0": { "description": "__MSG_shortcutSlot0__", "suggested_key": {"default": "Shift+Alt+O"}},

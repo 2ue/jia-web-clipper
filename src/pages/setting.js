@@ -258,6 +258,14 @@ function initSettingHandlerWizNotePlus(config) {
   );
 }
 
+// section: handler-FileServer
+function initSettingHandlerFileServer(config) {
+  initCheckboxInput(config,
+    "handler-file-server-enabled",
+    "handlerFileServerEnabled",
+  );
+}
+
 function initSettingSaveFormat(config){
   initOptionsInput(config,
     'save-format',
@@ -1025,6 +1033,9 @@ function renderSection(id) {
     case 'setting-handler-wiz-note-plus':
       render = renderSectionHandlerWizNotePlus;
       break;
+    case 'setting-handler-file-server':
+      render = renderSectionHandlerFileServer;
+      break;
     case 'setting-offline-page':
       render = renderSectionOfflinePage;
       break;
@@ -1591,6 +1602,30 @@ async function renderSectionHandlerWizNotePlus(id, container, template) {
     renderNoticeBox(section, 'info', msg);
   } else {
     let msg = I18N.t('notice.danger.wiz-note-plus-not-ready');
+    msg = msg.replace('$MESSAGE', info.message);
+    renderNoticeBox(section, 'danger', msg);
+  }
+}
+
+async function renderSectionHandlerFileServer(id, container, template) {
+  // Render html template
+  const html = template;
+  T.setHtml(container, html);
+  MxWcConfig.load().then((config) => {
+    initSettingHandlerFileServer(config);
+  });
+  // Check the state of FileServer
+  const info = await ExtMsg.sendToBackground({
+    type: 'handler.get-info',
+    body: {name: 'FileServer'}
+  });
+  // Notify the user
+  const section = T.findElem(id);
+  if(info.ready) {
+    const msg = I18N.t("notice.info.file-server-ready") || "File Server is ready";
+    renderNoticeBox(section, 'info', msg);
+  } else {
+    let msg = I18N.t('notice.danger.file-server-not-ready') || 'File Server is not ready';
     msg = msg.replace('$MESSAGE', info.message);
     renderNoticeBox(section, 'danger', msg);
   }
