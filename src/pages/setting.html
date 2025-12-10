@@ -30,6 +30,7 @@
           <a class="menu" href="#setting-handler-browser" i18n="title.handler-browser"></a>
           <a class="menu" href="#setting-handler-native-app" i18n="title.handler-native-app"></a>
           <a class="menu" href="#setting-handler-wiz-note-plus" i18n="title.handler-wiz-note-plus"></a>
+          <a class="menu" href="#setting-handler-file-server" i18n="title.handler-file-server"></a>
           <hr />
           <a class="menu" href="#setting-reset-and-backup" i18n="title.reset-and-backup"></a>
 
@@ -833,6 +834,7 @@ const hello = () =&gt; {
             <a data-value="Browser" i18n="handler.browser.name"></a>
             <a data-value="NativeApp" i18n="handler.native-app.name"></a>
             <a data-value="WizNotePlus" i18n="handler.wiz-note-plus.name"></a>
+            <a data-value="FileServer" i18n="handler.file-server.name"></a>
           </div>
           <div class="danger-box"></div>
           <div class="info-box"></div>
@@ -1329,6 +1331,47 @@ const hello = () =&gt; {
         <div class="switch">
           <input type="checkbox" id="handler-wiz-note-plus-enabled" />
           <label for="handler-wiz-note-plus-enabled" i18n="label.enable-handler"></label>
+        </div>
+      </section>
+    </template>
+
+    <template id="section-setting-handler-file-server-tpl">
+      <section id="setting-handler-file-server">
+        <h2 class="center" i18n="title.handler-file-server"></h2>
+        <div class="intro">
+          <h3 i18n="title.intro"></h3>
+          <p i18n="handler.file-server.intro"></p>
+        </div>
+        <div class="configuration">
+          <h3 i18n="title.configuration"></h3>
+          <div class="control">
+            <label for="file-server-url" i18n="label.file-server-url"></label>
+            <input type="text" id="file-server-url" placeholder="http://localhost:3456" />
+          </div>
+          <div class="control">
+            <label for="file-server-token" i18n="label.file-server-token"></label>
+            <input type="password" id="file-server-token" placeholder="your-secret-token" />
+          </div>
+          <div class="control">
+            <label for="file-server-relative-profile" i18n="label.file-server-relative-profile"></label>
+            <input type="text" id="file-server-relative-profile" placeholder="default" value="default" />
+          </div>
+          <button id="test-file-server-connection" i18n="button.test-connection"></button>
+          <div class="success-box"></div>
+          <div class="danger-box"></div>
+        </div>
+        <div class="features">
+          <h3 i18n="title.feature"></h3>
+          <ul>
+            <li i18n="handler.file-server.feature.a"></li>
+            <li i18n="handler.file-server.feature.b"></li>
+            <li i18n="handler.file-server.feature.c"></li>
+            <li i18n="handler.file-server.feature.d"></li>
+          </ul>
+        </div>
+        <div class="switch">
+          <input type="checkbox" id="handler-file-server-enabled" />
+          <label for="handler-file-server-enabled" i18n="label.enable-handler"></label>
         </div>
       </section>
     </template>

@@ -20,6 +20,7 @@ import initBackend_Selection from './selection/backend.js';
 import Handler_Browser     from './handler/browser.js';
 import Handler_NativeApp   from './handler/native-app.js';
 import Handler_WizNotePlus from './handler/wiznoteplus.js';
+import Handler_FileServer  from './handler/file-server.js';
 
 import BlobUrl       from './background/blob-url.js';
 import MxWcMigration from './background/migration.js';
@@ -718,6 +719,7 @@ function getHandlerByName(name) {
     case 'Browser':     return Handler_Browser;
     case 'NativeApp':   return Handler_NativeApp;
     case 'WizNotePlus': return Handler_WizNotePlus;
+    case 'FileServer':  return Handler_FileServer;
     default:            return Handler_Browser;
   }
 }
@@ -824,6 +826,7 @@ function init() {
   Handler_Browser.init(Object.assign({TaskFetcher}, {isChrome}));
   Handler_NativeApp.init({TaskFetcher});
   Handler_WizNotePlus.init({TaskFetcher});
+  Handler_FileServer.init({TaskFetcher});
 
   ExtMsg.listenBackend('background', messageHandler);
   refreshHistoryIfNeed();
@@ -834,7 +837,8 @@ function init() {
   initBackend_Saving(Object.assign({
     Handler_Browser,
     Handler_NativeApp,
-    Handler_WizNotePlus
+    Handler_WizNotePlus,
+    Handler_FileServer
   }, {
     evTarget: Global.evTarget,
   }));

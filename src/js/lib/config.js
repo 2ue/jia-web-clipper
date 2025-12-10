@@ -18,6 +18,7 @@ function getDefault(){
     handlerBrowserEnabled: true,
     handlerNativeAppEnabled: false,
     handlerWizNotePlusEnabled: false,
+    handlerFileServerEnabled: false,
 
     //=====================================
     // General
@@ -125,6 +126,19 @@ function getDefault(){
 
     // 'html' or 'md'
     saveFormat: 'html',
+
+    //=====================================
+    // File Server Configuration
+    //=====================================
+    fileServer: {
+      enabled: false,
+      url: 'http://localhost:3456',
+      token: '',
+      relativeProfile: 'default',
+      maxConcurrency: 4,
+      pollInterval: 2000,
+      maxPolls: 300
+    },
 
     // ======== Local path ==========
     rootFolder: 'mx-wc',

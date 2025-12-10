@@ -49,8 +49,13 @@ class JobService {
                 return {
                   ...res,
                   status: 'failed',
-                  errorCode: 'SERVER_RESTART',
-                  errorMessage: 'Server restarted before completion'
+                  result: {
+                    url: res.url,
+                    filename: res.filename,
+                    status: 'failed',
+                    errorCode: 'SERVER_RESTART',
+                    errorMessage: 'Server restarted before completion'
+                  }
                 };
               }
               return res;
@@ -458,5 +463,6 @@ class JobService {
   }
 }
 
+export { JobService };
 const jobService = new JobService();
 export default jobService;
